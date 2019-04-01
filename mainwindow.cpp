@@ -35,69 +35,33 @@ float MainWindow::faceArea(MyMesh* _mesh, int faceID)
 
 float MainWindow::angleFF(MyMesh* _mesh, int faceID0,  int faceID1, int vertID0, int vertID1)
 {
-    FaceHandle fh = _mesh->face_handle(faceID0);
-    std::vector <int> pointID;
-    int debut = -1;
-    bool pos = false;
+     if(faceID0 == faceID1)
+         return 0.0;
+     if(vertID0 == vertID1)
+         return 0.0;
 
-    for (MyMesh::FaceVertexIter curVert = _mesh->fv_iter(fh); curVert.is_valid(); curVert ++)
-    {
-       pointID.push_back((*curVert).idx());
-    }
+     VertexHandle vh0 = _mesh->vertex_handle (vertID0);
+     FaceHandle fh0 = _mesh->face_handle (faceID0);
+     FaceHandle fh1 = _mesh->face_handle (faceID1);
+     int Signe = 0;
 
-    for(int i = 0; i < 3; i++){
-        if(vertID0 == pointID.at(i))
-            debut = i;
-    }
+     MyMesh::FaceVertexCWIter fh = _mesh->fv_cwiter (fh0);
 
-    if(pointID.at((debut+2)%3) == vertID1)
-        pos = true;
+     while ( fh.is_valid() && *fh != vh0 )
+         fh++;
+     fh++;
+     VertexHandle Suivant = *fh;
 
-    // première face
-    VectorT <float,6> vec = VecteurDirecteursTriangle(_mesh, vertID0, faceID0);
-    VectorT <float,3> AB;
-        AB[0] = vec[0];
-        AB[1] = vec[1];
-        AB[2] = vec[2];
-    VectorT <float,3> AC;
-        AC[0] = vec[3];
-        AC[1] = vec[4];
-        AC[2] = vec[5];
+     if (Suivant.idx () == vertID1)
+         Signe = -1;
+     else
+         Signe = 1;
 
-    // Calcul de la normal des deux vecteurs
-    VectorT <float,3> N;
-    N[0] = (AB[1]*AC[2] - AB[2] * AC[1]);
-    N[1] = (AB[2]*AC[0] - AB[0] * AC[2]);
-    N[2] = (AB[0]*AC[1] - AB[1] * AC[0]);
+     OpenMesh::Vec3f normal0 (_mesh->normal(fh0));
+     OpenMesh::Vec3f normal1 (_mesh->normal(fh1));
 
-
-    // deuxième face
-    VectorT <float,6> vec1 = VecteurDirecteursTriangle(_mesh, vertID1, faceID1);
-    VectorT <float,3> AB1;
-        AB1[0] = vec1[0];
-        AB1[1] = vec1[1];
-        AB1[2] = vec1[2];
-    VectorT <float,3> AC1;
-        AC1[0] = vec1[3];
-        AC1[1] = vec1[4];
-        AC1[2] = vec1[5];
-
-    // Calcul de la normal des deux vecteurs
-    VectorT <float,3> N1;
-    N1[0] = (AB1[1]*AC1[2] - AB1[2] * AC1[1]);
-    N1[1] = (AB1[2]*AC1[0] - AB1[0] * AC1[2]);
-    N1[2] = (AB1[0]*AC1[1] - AB1[1] * AC1[0]);
-/*
-    if(faceID0 > faceID1)
-        return -acos(N.normalized()|N1.normalized());
-    else
-        return acos(N.normalized()|N1.normalized());
-*/
-
-    if(pos == true)
-        return -acos(N.normalized()|N1.normalized());
-    else
-        return acos(N.normalized()|N1.normalized());
+     float scalar = normal0 | normal1;
+     return Signe * acos ( scalar );
 }
 
 VectorT <float,6> MainWindow::VecteurDirecteursTriangle(MyMesh *_mesh, int vertexID, int faceID){
@@ -191,6 +155,7 @@ int MainWindow::PointEnFace(MyMesh *_mesh, int vertexID, int faceID, int faceID2
            B = (*curVert).idx();
        else if(C == -1 && B != -1)
            C = (*curVert).idx();
+
     }
 
     for (MyMesh::FaceVertexIter curVert = _mesh->fv_iter(fh1); curVert.is_valid(); curVert ++)
@@ -230,42 +195,61 @@ float MainWindow::angleEE(MyMesh* _mesh, int vertexID,  int faceID)
     return acos(AB.normalized()|AC.normalized());
 }
 
+
+
 float MainWindow::fctH(MyMesh* _mesh, int vertexID){
 
     float firstPart = 1/(4.0*AireBarycentrique(_mesh, vertexID));
     float secondPart = 0;
 
-    qDebug() << "\nvertex Actuel : " << vertexID;
     VertexHandle v_it = _mesh->vertex_handle(vertexID);
-    // parcours des faces autour de vertexID
-
-    std::vector<FaceHandle> Faces;
-    for(MyMesh::VertexFaceIter  vf_it = mesh.vf_iter(v_it); vf_it; ++vf_it) {
-        FaceHandle fh = *vf_it;
-        Faces.push_back(fh);
-        qDebug() << "id de la face : " << fh.idx();
+    std::vector<VertexHandle> Vertexs;
+    for(MyMesh::VertexVertexIter  vv_it = mesh.vv_iter(v_it); vv_it; ++vv_it) {
+        VertexHandle vh = *vv_it;
+        Vertexs.push_back(vh);
     }
 
-   for(int i =0; i<Faces.size()-1;i++) {
-       FaceHandle fh = Faces.at(i);
-       FaceHandle fh1 = Faces.at((i+1));
+   int i = 0;
+   for(i =0; i<Vertexs.size()-1;i++) {
+       FaceHandle fh;
+       FaceHandle fh1;
 
-       if(fh.idx() != fh1.idx()){
-           int vertexEnFace = PointEnFace(_mesh, vertexID, fh.idx(), fh1.idx());
+       bool first = false;
+       for (MyMesh::VertexFaceIter curVert = _mesh->vf_iter(v_it); curVert.is_valid(); curVert ++)
+       {
+           for (MyMesh::VertexFaceIter curVert1 = _mesh->vf_iter(Vertexs.at(i)); curVert1.is_valid(); curVert1 ++)
+           {
+               if((*curVert).idx() == (*curVert1).idx()){
 
-           VectorT <float,3> AB = LongueurArc(_mesh, vertexID, vertexEnFace);
-
-           qDebug() << "vertex courant :" << vertexID << "vertex en face : " << vertexEnFace;
-           qDebug() << "face 1 : " << fh.idx() << "face 2 :" << fh1.idx();
-
-           qDebug() << "** angleFF : " << angleFF(_mesh, fh.idx(), fh1.idx(), vertexID, vertexEnFace) << " norm de AB : " << AB.norm();
-           secondPart += (angleFF(_mesh, fh.idx(), fh1.idx(), vertexID, vertexEnFace) * AB.norm());
-
+                   if(!first){
+                       fh = curVert;
+                       fh1 = curVert;
+                       first = true;
+                   }
+                   else
+                       fh1 = curVert;
+               }
+           }
        }
+
+       int vertexEnFace = Vertexs.at(i).idx();
+
+       OpenMesh::Vec3f VecteurDirecteur = _mesh->point (_mesh->vertex_handle ( vertexEnFace ) ) - _mesh->point ( _mesh->vertex_handle(vertexID));
+
+       OpenMesh::Vec3f normal0 ( _mesh->normal ( fh ) );
+       OpenMesh::Vec3f normal1 ( _mesh->normal ( fh1 ) );
+
+       if (((normal0 % normal1) | VecteurDirecteur) < 0)
+       {
+           FaceHandle tmp = fh;
+           fh = fh1;
+           fh1 = tmp;
+       }
+        secondPart += (angleFF(_mesh, fh.idx(), fh1.idx(), vertexID, vertexEnFace) * VecteurDirecteur.norm());
    }
-    qDebug() << "firstPart :" << firstPart << " secondPart : " << secondPart << "\n";
     return firstPart * secondPart;
 }
+
 
 void MainWindow::H_Curv(MyMesh* _mesh)
 {
