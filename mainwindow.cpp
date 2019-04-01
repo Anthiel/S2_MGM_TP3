@@ -136,49 +136,6 @@ VectorT <float,3> MainWindow::LongueurArc(MyMesh *_mesh, int vertexID, int verte
 }
 
 
-
-int MainWindow::PointEnFace(MyMesh *_mesh, int vertexID, int faceID, int faceID2){
-    FaceHandle fh = _mesh->face_handle(faceID);
-    FaceHandle fh1 = _mesh->face_handle(faceID2);
-
-    int A = -1;
-    int C = -1, B = -1;
-    int A1 = -1;
-    int C1 = -1, B1 = -1;
-
-     // On donne au point A son ID
-    for (MyMesh::FaceVertexIter curVert = _mesh->fv_iter(fh); curVert.is_valid(); curVert ++)
-    {
-       if(vertexID == (*curVert).idx())
-           A = (*curVert).idx();
-       else if(B == -1)
-           B = (*curVert).idx();
-       else if(C == -1 && B != -1)
-           C = (*curVert).idx();
-
-    }
-
-    for (MyMesh::FaceVertexIter curVert = _mesh->fv_iter(fh1); curVert.is_valid(); curVert ++)
-    {
-        if(vertexID == (*curVert).idx())
-            A1 = (*curVert).idx();
-        else if(B1 == -1)
-            B1 = (*curVert).idx();
-        else if(C1 == -1 && B1 != -1)
-            C1 = (*curVert).idx();
-    }
-
-    if(B == B1)
-        return B;
-    if(C == C1)
-        return C;
-    if(B == C1)
-        return B;
-    if(C == B1)
-        return C;
-    return A;
-}
-
 float MainWindow::angleEE(MyMesh* _mesh, int vertexID,  int faceID)
 {
     VectorT <float,6> vec = VecteurDirecteursTriangle(_mesh, vertexID, faceID);
